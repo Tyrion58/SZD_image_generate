@@ -1,0 +1,15 @@
+D:\SZD_cgan\SZD_image_generate\utils\train_utils.py:175: UserWarning: gpu is not available
+  warnings.warn("gpu is not available")
+11-25 01:04:49 using 1 cpu
+D:\anaconda3\envs\pytorch\lib\site-packages\sklearn\manifold\_t_sne.py:996: FutureWarning: The PCA initialization in TSNE will change to have the standard deviation of PC1 equal to 1e-4 in 1.2. This will ensure better convergence.
+  warnings.warn(
+0it [00:00, ?it/s]                                                                              | 0/30 [00:00<?, ?it/s]
+  0%|                                                                                           | 0/30 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "D:\SZD_cgan\SZD_image_generate\train.py", line 67, in <module>
+    trainer.train()
+  File "D:\SZD_cgan\SZD_image_generate\utils\train_utils.py", line 314, in train
+    err_D, err_G = self.train_cGAN(args.batch_size)
+  File "D:\SZD_cgan\SZD_image_generate\utils\train_utils.py", line 241, in train_cGAN
+    y_real = torch.ones(self.batch_size, ).to(self.device)
+AttributeError: 'train_utils' object has no attribute 'batch_size'
