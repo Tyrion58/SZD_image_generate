@@ -1,0 +1,42 @@
+{
+    "os": "Windows-10-10.0.22000-SP0",
+    "python": "3.9.13",
+    "heartbeatAt": "2022-11-24T16:53:59.399692",
+    "startedAt": "2022-11-24T16:53:53.964157",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "D:\\SZD_cgan\\SZD_image_generate\\train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/Tyrion58/SZD_image_generate.git",
+        "commit": "b75f8c817a7382fd3329c11a347d6a50f0157823"
+    },
+    "email": "zhangty21@mail.ustc.edu.cn",
+    "root": "D:/SZD_cgan/SZD_image_generate",
+    "host": "Analysis-Mechine-Of-Tyrion",
+    "username": "Ty Zhang",
+    "executable": "D:\\anaconda3\\envs\\pytorch\\python.exe",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 3187.0,
+        "min": 0.0,
+        "max": 3187.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3187.0,
+            "min": 0.0,
+            "max": 3187.0
+        }
+    ],
+    "disk": {
+        "total": 329.07519149780273,
+        "used": 262.7167320251465
+    },
+    "memory": {
+        "total": 15.788383483886719
+    }
+}
