@@ -21,13 +21,16 @@ import wandb
 import models
 from datasets.ImageDatasets import GetData
 
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
 label_dim = 6
 nz = 100
 SX = 64
 SY = 64
 N_CHANNELS = 1
 EXTRINSIC_DIM = 6
-LATENT_DIM = 32
+
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -170,7 +173,6 @@ class train_utils(object):
             # 求设备的gpu数量
             self.device_count = torch.cuda.device_count()
             logging.info('using {} gpus'.format(self.device_count))
-            assert args.batch_size % self.device_count == 0, "batch size should be divided by device count"
 
         else:
             warnings.warn("gpu is not available")
@@ -180,9 +182,9 @@ class train_utils(object):
     
         self.XS, self.YS, self.YS_scaled, self.WEIGHTS, self.WEIGHTS_SUM = self.get_data(args.data_path, args.image_subpath)
 
-
-        self.dataset = GetData(self.XS, self.YS_scaled, self.WEIGHTS, self.device)
-        self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size=args.batch_size, shuffle=True)
+        if args.train:
+            self.dataset = GetData(self.XS, self.YS_scaled, self.WEIGHTS, self.device)
+            self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size=args.batch_size, shuffle=True)
         # Define the model
         fmodel = getattr(models, args.model_name)
 
@@ -192,8 +194,9 @@ class train_utils(object):
         self.D = getattr(fmodel, 'Discriminator')()
         self.D.apply(weights_init)
         # Define the optimizer
-        self.D_opt = torch.optim.Adam(self.D.parameters(), lr= args.lr, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
-        self.G_opt = torch.optim.Adam(self.G.parameters(), lr= args.lr, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
+        if args.train:
+            self.D_opt = torch.optim.Adam(self.D.parameters(), lr= args.lr, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
+            self.G_opt = torch.optim.Adam(self.G.parameters(), lr= args.lr, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
         # Invert the model and define the loss
         self.G.to(self.device)
         self.D.to(self.device)
@@ -221,6 +224,40 @@ class train_utils(object):
         # create class labels
         y = np.zeros((n_samples, 1))
         return [images, labels_input], y, weights_input
+
+    def create_randuni_process_vector(self, num_samples, set_zero,addition):
+        process_vector = np.concatenate([
+            np.reshape(np.random.uniform(20,600,num_samples),(num_samples,1)),
+            np.reshape(np.random.uniform(0,70,num_samples),(num_samples,1)),
+            np.reshape(np.random.uniform(0,10,num_samples),(num_samples,1)),
+            np.reshape(np.random.uniform(0.1,1.2,num_samples),(num_samples,1)),
+            np.reshape(np.random.uniform(1,200,num_samples),(num_samples,1)),
+            np.reshape(np.random.uniform(0.5,1,num_samples),(num_samples,1))
+        ],axis=1)
+        process_vector = np.reshape(process_vector,(num_samples,6))
+        process_vector[:,set_zero]=0
+        if addition is not None and len(addition)>0:
+            process_vector[:,:]=process_vector[:,:]+addition
+        scaler = MinMaxScaler()
+        sc = scaler.fit(process_vector)
+        process_vector = sc.transform(process_vector)
+
+        return process_vector
+
+    def gSZD_imscatter(self, x, y,img, ax,zoom):
+        images = []
+        for i in range(len(x)):
+            x0, y0 = x[i], y[i]
+            
+            image = img[i].reshape(self.plen, self.plen)
+            # image = cv2.cvtColor(image*255,cv2.COLOR_GRAY2RGB)
+            # Note: OpenCV uses BGR and plt uses RGB
+            image = OffsetImage(image, zoom=zoom)
+            ab = AnnotationBbox(image, (x0, y0), xycoords='data', frameon=False)
+            images.append(ax.add_artist(ab))
+    
+            ax.update_datalim(np.column_stack([x, y]))
+            ax.autoscale()
 
 
     def train_cGAN(self, batch_size):
@@ -320,4 +357,37 @@ class train_utils(object):
         wandb.finish()
         sub_dir = args.model_name + '_' + args.data_name + '_' + datetime.strftime(datetime.now(), '%m%d-%H%M%S')
         save_dir = os.path.join(args.checkpoint_dir, sub_dir)
-        torch.save(self.G.state_dict(), save_dir)
+        torch.save(self.G.state_dict(), './outputs/'+save_dir+'.pt')
+
+    def evaluate(self):
+        args = self.args
+        model = torch.load(args.model_dir, map_location='cpu')
+        self.G.load_state_dict(model)
+        self.G.eval()
+        scaler = MinMaxScaler()
+        plt.gray()
+        num_pred = 3000
+        self.plen = 64
+
+        latent_points, labels, weights = self.generate_latent_points(nz, num_pred)
+        del labels
+
+        add_ = [0,0,1.0,1.0,40,0.5]
+        pp = self.create_randuni_process_vector(num_pred,[2,3,4,5],add_)
+        with torch.no_grad():
+            X_test  = self.G(torch.as_tensor(latent_points, dtype=torch.float32), torch.as_tensor(pp, dtype=torch.float32))
+        # scale from [-1,1] to [0,1]
+        X_test = (X_test + 1) / 2.0
+        X_test = X_test.numpy() 
+        sc = scaler.fit(pp)
+        pp=sc.inverse_transform(pp)
+        if not os.path.exists('eval_images'):
+            os.makedirs('eval_images')
+
+        fig, ax = plt.subplots(figsize=(16, 12))
+        self.gSZD_imscatter(pp[:,0],pp[:,1],X_test,ax,.5)
+        plt.ylabel('Al-concentration [at.%]',fontsize=20)
+        plt.tick_params(axis='both', which='major', labelsize=20)
+        plt.xlabel('deposition temperature [°C]',fontsize=20)
+        plt.savefig(args.save_dir+'/'+datetime.strftime(datetime.now(), '%m%d-%H%M%S')+'.jpg')
+        plt.show()
