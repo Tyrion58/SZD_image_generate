@@ -2,9 +2,6 @@ import argparse
 from datetime import datetime
 import logging
 import os
-import random
-import time
-import warnings
 import wandb
 
 from utils.logger import setlogger
@@ -41,7 +38,7 @@ def parse_args():
                         help="Path to Discriminator checkpoint.")
     parser.add_argument("--netG", default="", type=str,
                         help="Path to Generator checkpoint.")
-    parser.add_argument("--pretrained", type=bool, default=True, 
+    parser.add_argument("--train", type=bool, default=True, 
                         help='whether to load the pretrained model')
     args = parser.parse_args()
     return args
@@ -62,6 +59,6 @@ if __name__ == "__main__":
         logging.info("{}: {}".format(k, v))
 
     wandb.init(project="cgan_train")
-    trainer = train_utils(args, save_dir)
+    trainer = train_utils(args, args.save_dir)
     trainer.setup()
     trainer.train()
