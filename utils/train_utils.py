@@ -15,6 +15,7 @@ from PIL import Image
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
+from torch.autograd import Variable
 from tqdm.autonotebook import tqdm
 import wandb
 
@@ -30,6 +31,9 @@ SX = 64
 SY = 64
 N_CHANNELS = 1
 EXTRINSIC_DIM = 6
+
+cuda = True if torch.cuda.is_available() else False
+LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
 
 # custom weights initialization called on netG and netD
@@ -202,6 +206,8 @@ class train_utils(object):
         self.D.to(self.device)
         # Loss function
         self.criterion = torch.nn.BCELoss(reduction='none')
+        if args.model_name=='acgan':
+            self.Crossloss = torch.nn.CrossEntropyLoss(reduction='none')
 
     # generate points in latent space as input for the generator
     def generate_latent_points(self, latent_dim, n_samples):
@@ -331,6 +337,71 @@ class train_utils(object):
                 save_image(out_imgs,f"{PATH}{i}.png", nrow = 10) #aggiungi percorso: "path/iterazione_classe.png" es "pippo/20000_3.png"
             '''
         return err_D, err_G
+    
+    def train_acGAN(self, batch_size):
+        for i, (data, label, weight) in tqdm(enumerate(self.dataloader)):
+    
+            ## Train with all-real batch        
+            self.D_opt.zero_grad()
+
+            # 真实数据 
+            x_real = data.to(self.device).float()
+            y_real = torch.ones(batch_size, ).to(self.device)
+            # label_onehot = onehot[label]
+            label = label.to(self.device).float()
+            y_real_predict, real_lable_predict = self.D(x_real)      
+            d_real_loss = (self.criterion(y_real_predict.squeeze(-1), y_real.squeeze(-1)) + self.Crossloss(label.squeeze(-1), real_lable_predict.squeeze(-1)))*0.5
+            d_real_loss = d_real_loss * weight / self.WEIGHTS_SUM
+            wandb.log({'d_real_loss':d_real_loss.mean()})
+            d_real_loss.mean().backward()
+
+            ## Train with all-fake batch
+
+            # noise = torch.randn(batch_size, nz, 1, 1, device = device)
+            # noise_label = (torch.rand(batch_size, 1) * label_dim).type(torch.LongTensor).squeeze()
+            #print(noise_label)
+            # noise_label_onehot = onehot[noise_label].to(device)  # Genera label in modo casuale (-1,)
+            # x_fake = G(noise, noise_label_onehot)       #Genera immagini false
+            # y_fake = torch.zeros(batch_size, ).to(device)    # Assegna label 0
+            # y_fake_predict = D(x_fake, noise_label_onehot).squeeze()
+
+            # 生成fake数据
+            [x_fake, noise_label], y_fake, weight_fake= self.generate_fake_samples(batch_size)
+            y_fake_predict, fake_label_predict = self.D(x_fake.float())
+            y_fake = torch.from_numpy(y_fake).reshape(-1).float().to(self.device)
+            d_fake_loss = (self.criterion(y_fake_predict.squeeze(-1), y_fake.squeeze(-1)) + self.Crossloss(noise_label.squeeze(-1), fake_label_predict.squeeze(-1)))*0.5
+            d_fake_loss = d_fake_loss * weight_fake / self.WEIGHTS_SUM
+            wandb.log({'d_fake_loss':d_fake_loss.mean()})
+            d_fake_loss.mean().backward()
+
+            # Calculate discriminator accuracy
+            pred = np.concatenate([real_lable_predict.data.cpu().numpy(), fake_label_predict.data.cpu().numpy()], axis=0)
+            gt = np.concatenate([label.data.cpu().numpy(), noise_label.data.cpu().numpy()], axis=0)
+            d_acc = np.mean(np.argmax(pred, axis=1) == gt)
+            wandb.log({'d_acc':d_acc})
+            self.D_opt.step()
+         
+            # (2) Update G network: maximize log(D(G(z)))         
+            self.G_opt.zero_grad()
+         
+            #noise = torch.randn(batch_size, z_dim, 1, 1, device = device)
+            #noise_label = (torch.rand(batch_size, 1) * label_dim).type(torch.LongTensor).squeeze()
+            #noise_label_onehot = onehot[noise_label].to(device)   # Genera label in modo casuale (-1,)
+            # x_fake = G(noise, noise_label_onehot)
+            [x_fake, noise_label], y_fake, weight_fake= self.generate_fake_samples(batch_size)
+            y_fake = torch.ones(batch_size, ).to(self.device)    # Il y_fake qui è lo stesso di y_real sopra, entrambi sono 1
+            y_fake_predict, fake_label_predict = self.D(x_fake.float())
+            g_loss = (self.criterion(y_fake_predict.squeeze(-1), y_real.squeeze(-1)) + self.Crossloss(noise_label.squeeze(-1), fake_label_predict.squeeze(-1)))*0.5   # Usa direttamente y_real per essere più intuitivo
+            g_loss = g_loss * weight_fake / self.WEIGHTS_SUM
+            wandb.log({'g_loss':g_loss.mean()})
+            g_loss.mean().backward()
+            self.G_opt.step()
+
+            err_D = d_fake_loss.mean().item() + d_real_loss.mean().item()
+            err_G = g_loss.mean().item()
+            wandb.log({'err_D':err_D, 'err_G':err_G})
+            
+        return err_D, err_G
 
 
     def train(self):
@@ -349,7 +420,10 @@ class train_utils(object):
                 self.D_opt.param_groups[0]['lr'] /= 2
         
             # training
-            err_D, err_G = self.train_cGAN(args.batch_size)
+            if args.model_name == 'cgan':
+                err_D, err_G = self.train_cGAN(args.batch_size)
+            elif args.model_name == 'acgan':
+                err_D, err_G = self.train_acGAN(args.batch_size)
             logging.info('Epoch: [{}/{}], Err_D: {:.4f} Err_G: {:.4f},'.format(epoch, args.epochs, err_D, err_G))
             D_loss.append(err_D)
             G_loss.append(err_G)
