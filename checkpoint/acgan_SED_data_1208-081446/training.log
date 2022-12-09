@@ -1,0 +1,15 @@
+12-08 08:14:46 model_name: acgan
+12-08 08:14:46 data_name: SED_data
+12-08 08:14:46 data_path: ./DATA
+12-08 08:14:46 image_subpath: images
+12-08 08:14:46 checkpoint_dir: ./checkpoint
+12-08 08:14:46 epochs: 30
+12-08 08:14:46 batch_size: 32
+12-08 08:14:46 lr: 2e-06
+12-08 08:14:46 beta1: 0.5
+12-08 08:14:46 image_size: 64
+12-08 08:14:46 channels: 1
+12-08 08:14:46 netD: 
+12-08 08:14:46 netG: 
+12-08 08:14:46 train: True
+12-08 08:14:54 using 1 cpu

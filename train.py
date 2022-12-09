@@ -12,7 +12,7 @@ args = None
 def parse_args():
     parser = argparse.ArgumentParser(description='Train')
 
-    parser.add_argument("--model_name", default="cgan", type=str,
+    parser.add_argument("--model_name", default="acgan", type=str,
                         help="Model architecture")
     parser.add_argument('--data_name', type=str, default='SED_data', 
                         help='the name of the data')
@@ -59,6 +59,6 @@ if __name__ == "__main__":
         logging.info("{}: {}".format(k, v))
 
     wandb.init(project="cgan_train")
-    trainer = train_utils(args, args.save_dir)
+    trainer = train_utils(args, save_dir)
     trainer.setup()
     trainer.train()

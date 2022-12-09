@@ -1,9 +1,0 @@
-D:\SZD_cgan\SZD_image_generate\utils\train_utils.py:175: UserWarning: gpu is not available
-  warnings.warn("gpu is not available")
-11-25 00:49:23 using 1 cpu
-Traceback (most recent call last):
-  File "D:\SZD_cgan\SZD_image_generate\train.py", line 66, in <module>
-    trainer.setup()
-  File "D:\SZD_cgan\SZD_image_generate\utils\train_utils.py", line 180, in setup
-    self.XS, self.YS, self.YS_scaled, self.WEIGHTS, self.WEIGHTS_SUM = self.get_data(args.data_path, args.image_subpath)
-TypeError: get_data() takes 2 positional arguments but 3 were given
