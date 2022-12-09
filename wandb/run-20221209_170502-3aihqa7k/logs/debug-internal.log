@@ -2931,3 +2931,7 @@ requests.exceptions.SSLError: HTTPSConnectionPool(host='api.wandb.ai', port=443)
 2022-12-09 20:35:16,584 DEBUG   SenderThread:7936 [sender.py:send_request():317] send_request: stop_status
 2022-12-09 20:35:33,818 DEBUG   HandlerThread:7936 [handler.py:handle_request():139] handle_request: stop_status
 2022-12-09 20:35:33,818 DEBUG   SenderThread:7936 [sender.py:send_request():317] send_request: stop_status
+2022-12-09 20:35:52,059 DEBUG   HandlerThread:7936 [handler.py:handle_request():139] handle_request: stop_status
+2022-12-09 20:35:52,059 DEBUG   SenderThread:7936 [sender.py:send_request():317] send_request: stop_status
+2022-12-09 20:36:09,261 DEBUG   HandlerThread:7936 [handler.py:handle_request():139] handle_request: stop_status
+2022-12-09 20:36:09,262 DEBUG   SenderThread:7936 [sender.py:send_request():317] send_request: stop_status
