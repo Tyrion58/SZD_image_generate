@@ -1,0 +1,16 @@
+12-07 22:35:30 model_name: acgan
+12-07 22:35:30 data_name: SED_data
+12-07 22:35:30 data_path: ./DATA
+12-07 22:35:30 image_subpath: images
+12-07 22:35:30 checkpoint_dir: ./checkpoint
+12-07 22:35:30 epochs: 30
+12-07 22:35:30 batch_size: 32
+12-07 22:35:30 lr: 0.0002
+12-07 22:35:30 beta1: 0.5
+12-07 22:35:30 image_size: 64
+12-07 22:35:30 channels: 1
+12-07 22:35:30 netD: 
+12-07 22:35:30 netG: 
+12-07 22:35:30 train: True
+12-07 22:36:15 using 1 cpu
+12-07 22:37:12 Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1129)'))': /api/5288891/envelope/

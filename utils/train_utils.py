@@ -199,15 +199,18 @@ class train_utils(object):
         self.D.apply(weights_init)
         # Define the optimizer
         if args.train:
-            self.D_opt = torch.optim.Adam(self.D.parameters(), lr= args.lr, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
+            self.D_opt = torch.optim.Adam(self.D.parameters(), lr= args.lr/2, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
             self.G_opt = torch.optim.Adam(self.G.parameters(), lr= args.lr, betas=(args.beta1, 0.999))#, betas=(beta1, 0.999))
+        
         # Invert the model and define the loss
         self.G.to(self.device)
         self.D.to(self.device)
         # Loss function
         self.criterion = torch.nn.BCELoss(reduction='none')
-        if args.model_name=='acgan':
-            self.Crossloss = torch.nn.CrossEntropyLoss(reduction='none')
+        if args.model_name == 'acgan':
+            self.criterion2 = torch.nn.BCEWithLogitsLoss()
+            
+        
 
     # generate points in latent space as input for the generator
     def generate_latent_points(self, latent_dim, n_samples):
@@ -349,8 +352,9 @@ class train_utils(object):
             y_real = torch.ones(batch_size, ).to(self.device)
             # label_onehot = onehot[label]
             label = label.to(self.device).float()
-            y_real_predict, real_lable_predict = self.D(x_real)      
-            d_real_loss = (self.criterion(y_real_predict.squeeze(-1), y_real.squeeze(-1)) + self.Crossloss(label.squeeze(-1), real_lable_predict.squeeze(-1)))*0.5
+            y_real_predict, real_lable_predict = self.D(x_real)
+            
+            d_real_loss = (self.criterion(y_real_predict.squeeze(-1), y_real.squeeze(-1)) + 5*self.criterion2(label.squeeze(-1).float(), real_lable_predict.squeeze(-1).float()))/6
             d_real_loss = d_real_loss * weight / self.WEIGHTS_SUM
             wandb.log({'d_real_loss':d_real_loss.mean()})
             d_real_loss.mean().backward()
@@ -367,18 +371,14 @@ class train_utils(object):
 
             # 生成fake数据
             [x_fake, noise_label], y_fake, weight_fake= self.generate_fake_samples(batch_size)
+            # print(x_fake.float())
             y_fake_predict, fake_label_predict = self.D(x_fake.float())
+            
             y_fake = torch.from_numpy(y_fake).reshape(-1).float().to(self.device)
-            d_fake_loss = (self.criterion(y_fake_predict.squeeze(-1), y_fake.squeeze(-1)) + self.Crossloss(noise_label.squeeze(-1), fake_label_predict.squeeze(-1)))*0.5
+            d_fake_loss = (self.criterion(y_fake_predict.squeeze(-1), y_fake.squeeze(-1)) + 5 * self.criterion2(noise_label.squeeze(-1).float(), fake_label_predict.squeeze(-1).float()))/6
             d_fake_loss = d_fake_loss * weight_fake / self.WEIGHTS_SUM
             wandb.log({'d_fake_loss':d_fake_loss.mean()})
             d_fake_loss.mean().backward()
-
-            # Calculate discriminator accuracy
-            pred = np.concatenate([real_lable_predict.data.cpu().numpy(), fake_label_predict.data.cpu().numpy()], axis=0)
-            gt = np.concatenate([label.data.cpu().numpy(), noise_label.data.cpu().numpy()], axis=0)
-            d_acc = np.mean(np.argmax(pred, axis=1) == gt)
-            wandb.log({'d_acc':d_acc})
             self.D_opt.step()
          
             # (2) Update G network: maximize log(D(G(z)))         
@@ -390,8 +390,13 @@ class train_utils(object):
             # x_fake = G(noise, noise_label_onehot)
             [x_fake, noise_label], y_fake, weight_fake= self.generate_fake_samples(batch_size)
             y_fake = torch.ones(batch_size, ).to(self.device)    # Il y_fake qui è lo stesso di y_real sopra, entrambi sono 1
+            # print(x_fake.float())
             y_fake_predict, fake_label_predict = self.D(x_fake.float())
-            g_loss = (self.criterion(y_fake_predict.squeeze(-1), y_real.squeeze(-1)) + self.Crossloss(noise_label.squeeze(-1), fake_label_predict.squeeze(-1)))*0.5   # Usa direttamente y_real per essere più intuitivo
+            #print(y_fake_predict)
+            #print(y_real)
+           # print(noise_label)
+            #print(fake_label_predict)
+            g_loss = (self.criterion(1-y_fake_predict.squeeze(-1), 1-y_real.squeeze(-1)) + 5*self.criterion2(noise_label.squeeze(-1).float(), fake_label_predict.squeeze(-1).float()))/6   # Usa direttamente y_real per essere più intuitivo
             g_loss = g_loss * weight_fake / self.WEIGHTS_SUM
             wandb.log({'g_loss':g_loss.mean()})
             g_loss.mean().backward()
@@ -431,11 +436,11 @@ class train_utils(object):
         wandb.finish()
         sub_dir = args.model_name + '_' + args.data_name + '_' + datetime.strftime(datetime.now(), '%m%d-%H%M%S')
         save_dir = os.path.join(args.checkpoint_dir, sub_dir)
-        torch.save(self.G.state_dict(), './outputs/'+save_dir+'.pt')
+        torch.save(self.G.state_dict(), save_dir+'.pt')
 
     def evaluate(self):
         args = self.args
-        model = torch.load(args.model_dir, map_location='cpu')
+        model = torch.load(args.model_dir, map_location=self.device)
         self.G.load_state_dict(model)
         self.G.eval()
         scaler = MinMaxScaler()
@@ -449,10 +454,10 @@ class train_utils(object):
         add_ = [0,0,1.0,1.0,40,0.5]
         pp = self.create_randuni_process_vector(num_pred,[2,3,4,5],add_)
         with torch.no_grad():
-            X_test  = self.G(torch.as_tensor(latent_points, dtype=torch.float32), torch.as_tensor(pp, dtype=torch.float32))
+            X_test  = self.G(torch.as_tensor(latent_points, dtype=torch.float32).to(self.device), torch.as_tensor(pp, dtype=torch.float32).to(self.device))
         # scale from [-1,1] to [0,1]
         X_test = (X_test + 1) / 2.0
-        X_test = X_test.numpy() 
+        X_test = X_test.cpu().numpy() 
         sc = scaler.fit(pp)
         pp=sc.inverse_transform(pp)
         if not os.path.exists('eval_images'):

@@ -19,12 +19,9 @@ class Generator(nn.Module):
         self.image_size = image_size
         self.channels = channels
         self.num_classes = num_classes
-        # self.label_embedding = nn.Linear(num_classes, num_classes)
-        # self.label_embedding = nn.Embedding(num_classes, num_classes)
-        self.ylabel = nn.Sequential(
-            nn.Linear(num_classes, 100),
-            nn.ReLU(True)
-        )
+        self.label_emb = nn.Linear(label_dim, nz)
+
+        # self.l1 = nn.Linear(nz, nz + nz)
 
         self.main = nn.Sequential(
             # 1*1*200 ->4*4*512 
@@ -34,16 +31,19 @@ class Generator(nn.Module):
 
             # 4*4*512 -> 8*8*256
             nn.ConvTranspose2d(64*8, 64*4, 4, 2, 1, bias=True),
+            nn.Dropout(0.4, inplace=True),
             nn.BatchNorm2d(64*4),
             nn.LeakyReLU(0.2, inplace=True),
             
             # 8*8*256 -> 16*16*128
             nn.ConvTranspose2d(64*4, 64*2, 4, 2, 1, bias=True),
+            nn.Dropout(0.4, inplace=True),
             nn.BatchNorm2d(64*2),
             nn.LeakyReLU(0.2, inplace=True),
 
             # 16*16*128 -> 32*32*64
             nn.ConvTranspose2d(64*2, 64, 4, 2, 1, bias=True),
+            nn.Dropout(0.4, inplace=True),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
 
@@ -53,14 +53,15 @@ class Generator(nn.Module):
         )
 
     def forward(self, x, y):
-        # 这一步似乎可以省略
-        y=y.reshape(-1,self.num_classes)
-        y = self.ylabel(y)
+        y = self.label_emb(y)
+        
+        # gen_input = torch.mul(y, x)
+        # gen_input = x + y
         y=y.reshape(-1,nz,1,1)
         x=x.reshape(-1,nz,1,1)
         out = torch.cat([x, y] , dim=1)
-        out=out.view(-1,100+nz,1,1)
-
+        # out = self.l1(gen_input)
+        out = out.view(-1, nz+nz, 1, 1)
         out = self.main(out)
         
         return out
@@ -72,21 +73,22 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         
         self.main = nn.Sequential(
-            nn.Conv2d(nc, 64, 4, 2, 1, bias=False),
+            nn.Conv2d(nc, 64, 4, 2, 1),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(64, 64 * 2, 4, 2, 1, bias=False),
+            nn.Conv2d(64, 64 * 2, 4, 2, 1),
             nn.BatchNorm2d(64 * 2),
             nn.LeakyReLU(0.2, inplace=True),
             
-            nn.Conv2d(64*2 , 64*4, 4, 2, 1, bias=False),
+            nn.Conv2d(64*2 , 64*4, 4, 2, 1),
             nn.BatchNorm2d(64 * 4),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(64*4 , 64*8, 4, 2, 1, bias=False),
+            nn.Conv2d(64*4 , 64*8, 4, 2, 1),
+            # nn.Dropout(0.5, inplace=True),
             nn.BatchNorm2d(64 * 8),
-            nn.LeakyReLU(0.2, inplace=True),
-
+            nn.LeakyReLU(0.2, inplace=True)
+            
             #nn.Conv2d(64*8, 1, 4, 1, 0, bias=False),
             #nn.Dropout(0.4, inplace=True),
             #nn.Sigmoid()
@@ -94,8 +96,24 @@ class Discriminator(nn.Module):
         # The height and width of downsampled image
         ds_size = image_size // 2 ** 4
 
-        self.adv_layer = nn.Sequential(nn.Linear(64 * 8 * ds_size ** 2, 1), nn.Sigmoid())
-        self.aux_layer = nn.Sequential(nn.Linear(64 * 8 * ds_size ** 2, label_dim), nn.Softmax())
+        self.adv_layer = nn.Sequential(
+            nn.Linear(64 * 8 * ds_size ** 2, 64 * 8), 
+            nn.ReLU(inplace=True),
+            #nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(64 * 8, 64), 
+            nn.ReLU(inplace=True),
+            #nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(64, 1),
+            nn.Sigmoid())
+        self.aux_layer = nn.Sequential(
+            nn.Linear(64 * 8 * ds_size ** 2, 64 * 8), 
+            nn.ReLU(inplace=True),
+            #nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(64 * 8, 64), 
+            nn.ReLU(inplace=True),
+            #nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(64, label_dim),
+            nn.Sigmoid())
         
     def forward(self, img):
         out = self.main(img)
