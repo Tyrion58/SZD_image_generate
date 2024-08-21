@@ -5,6 +5,9 @@ The project replicates the methodology described in the paper
 "[Predicting Structure Zone Diagrams for Thin Film Synthesis by Generative Machine Learning](https://www.researchgate.net/publication/340232305_Predicting_structure_zone_diagrams_for_thin_film_synthesis_by_generative_machine_learning)." using a new model architecture. 
 ![cover](./cover.png)
 
+## Note:
+This is not the official code implementation of this work. This repository uses the new model acGAN to achieve the generation of SZD images. This work is just a course project for the undergraduate electromagnetics course of the University of Science and Technology of China(USTC). This is my [course report](./Electromagnetism_course_paper_tunyu.pdf). I probably won't maintain and update this project anymore. If anyone is interested, please contact me in issues.
+
 ## 1. Installation and Setup
 Clone this repository to your local machine using the following command:
 
