@@ -2,7 +2,8 @@
 
 This repository contains the implementation of an Auxiliary Classifier Generative Adversarial Network (AC-GAN) for generating Structure Zone Diagrams (SZDs) used in thin film synthesis. 
 The project replicates the methodology described in the paper 
-"[Predicting Structure Zone Diagrams for Thin Film Synthesis by Generative Machine Learning](https://www.researchgate.net/publication/340232305_Predicting_structure_zone_diagrams_for_thin_film_synthesis_by_generative_machine_learning)."
+"[Predicting Structure Zone Diagrams for Thin Film Synthesis by Generative Machine Learning](https://www.researchgate.net/publication/340232305_Predicting_structure_zone_diagrams_for_thin_film_synthesis_by_generative_machine_learning)." using a new model architecture. 
+![cover](./cover.png)
 
 ## 1. Installation and Setup
 Clone this repository to your local machine using the following command:
