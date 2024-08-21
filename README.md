@@ -96,6 +96,3 @@ python eval.py -h
 ```
 
 Upon completion, the evaluation results will be saved in an `eval_image` folder in the root directory, named with the current timestamp.
-
-## 4. License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
